@@ -1,0 +1,99 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+def antibias_algorithm(*args):
+    """
+    Copyright (c) 2023 karinmcode
+    All rights reserved.
+
+    AntibiasAlgorithm - Plots antibias curves or calculates the next trial's
+    right trial probability using signal detection theory.
+    
+    Usage:
+        antibias_algorithm() # Plots for all bias levels
+        antibias_algorithm(BIAS) # Calculates probability for given BIAS
+        antibias_algorithm(history) # Calculates probability based on history (-1, 1)
+        antibias_algorithm(BIAS, BIAS_LEVEL) # Calculates probability for given BIAS and BIAS_LEVEL
+        antibias_algorithm(history, BIAS_LEVEL) # Calculates probability based on history and BIAS_LEVEL
+
+    Inputs:
+        BIAS - A single bias value (numeric) controlling the strength of the bias.
+               It should be between -1 and 1. Higher values make the algorithm more biased.
+        history - A 2-column matrix where each row represents a trial response with left (1 in first column)
+                  and right (1 in second column) lick responses. Zeros mean no response.
+        BIAS_LEVEL - Bias level controlling the sigmoid curve steepness (default = 6).
+                     A value of 1 results in a linear relationship.
+
+    Output:
+        nextRightTrialProba - Probability of the next trial being a right trial
+    """
+    
+    # Default bias level
+    default_bias_level = 6
+
+    # No input provided - plot for all bias levels
+    if len(args) == 0:
+        plot_all_bias_levels(default_bias_level)
+    else:
+        # Handle optional bias level input
+        bias_level = args[1] if len(args) > 1 else default_bias_level
+
+        # Calculate nextRightTrialProba probability for given input
+        input_arg = args[0]
+        if np.isscalar(input_arg):
+            # Single bias value provided
+            next_right_trial_proba = calculate_probability(input_arg, bias_level)
+        elif isinstance(input_arg, np.ndarray) and input_arg.shape[1] == 2:
+            # 2-column matrix representing history provided
+            history = input_arg
+            bias = calculate_bias_from_history(history)
+            next_right_trial_proba = calculate_probability(bias, bias_level)
+        else:
+            raise ValueError('Input must be a scalar bias or a 2-column matrix representing history')
+
+        return next_right_trial_proba
+
+def plot_all_bias_levels(bias_level):
+    """
+    Plots antibias curves for different bias levels.
+    """
+    x = np.arange(-1, 1.1, 0.1)
+    nb = 6  # Number of bias levels
+    plt.figure()
+    for b in range(1, nb + 1):
+        y = 1 / (1 + np.exp(-bias_level * x))
+        plt.plot(x, y, label=f'Bias = {b}')
+        plt.hold(True)
+    plt.xlim([-1, 1])
+    plt.xlabel('Bias')
+    plt.ylabel('Probability Right')
+    plt.title('Antibias Algorithm for Various Bias Levels')
+    plt.legend()
+    plt.gca().set_fontsize(14)
+    plt.show()
+
+def calculate_bias_from_history(history):
+    """
+    Calculate bias from the history of trials.
+    """
+    # Remove rows with only zeros
+    history = history[~np.all(history == 0, axis=1)]
+
+    # Calculate correct rates
+    correct_left = np.sum(history[:, 0] == 1)
+    correct_right = np.sum(history[:, 1] == 1)
+
+    correct_left_rate = correct_left / history.shape[0]
+    correct_right_rate = correct_right / history.shape[0]
+
+    # Calculate bias based on the difference between correctRightRate and correctLeftRate
+    bias = correct_right_rate - correct_left_rate
+
+    # Ensure that bias is between -1 and 1
+    return np.clip(bias, -1, 1)
+
+def calculate_probability(bias, bias_level):
+    """
+    Calculate nextRightTrialProba probability for a given bias and bias level.
+    """
+    return 1 / (1 + np.exp(-bias_level * bias))
